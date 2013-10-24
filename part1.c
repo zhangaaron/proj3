@@ -24,19 +24,48 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
 
     //Determine padded matrix size: 
-    int padded_matrix_size = data_size_X * data_size_Y + 2 * data_size_Y + 2 * data_size_X - 2;
+    int padded_matrix_size = (data_size_X + kern_cent_X) * (data_size_Y + kern_cent_Y);
 
-    //Create a padded matrix:
-    //Pad the top with zeros:
+    //Create a padded matrix: for simplicity's sake we're just iterating through the entire thing and zeroing everything. 
+    //Optimize later?
     float padded_in[padded_matrix_size];
     __m128i zero_pad = _mm_setzero_si128(); //128 bit value with all zeros. 
-    for (int i = 0; i < data_size_X; i += 16) {
+    for (int i = 0; i < padded_matrix_size; i += 16) {
     	*(__m128i*)(padded_in + i + 0) = zero_pad;
     	*(__m128i*)(padded_in + i + 4) = zero_pad;
     	*(__m128i*)(padded_in + i + 8) = zero_pad;
     	*(__m128i*)(padded_in + i + 12) = zero_pad; 
 
     }
+    //Pad tail
+    for (int i = padded_matrix_size / 16 * 16; i < padded_matrix_size;  i ++) {
+    	padded_in[i] = 0;
+    }
+	__m128 array_elems_to_load0;
+	__m128 array_elems_to_load1;
+	__m128 array_elems_to_load2;
+	__m128 array_elems_to_load3;
+    for (int i = 0; i < data_size_Y; i ++ ) {
+    	for (int j = 0; j < data_size_X; j += 16 ) {
+    		//get 4 128bit quantities per iteration of loop from in. 
+    		array_elems_to_load0 = _mm_load_ps (in + i * data_size_X + j + 0);
+    		array_elems_to_load1 = _mm_load_ps (in + i * data_size_X + j + 4);
+    		array_elems_to_load2 = _mm_load_ps (in + i * data_size_X + j + 8);
+    		array_elems_to_load3 = _mm_load_ps (in + i * data_size_X + j+ 12);
+    		//Put array elements into padded array. 
+    		*(__m128i*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 0) = array_elems_to_load0;
+    		*(__m128i*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 4) = array_elems_to_load4;
+    		*(__m128i*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 8) = array_elems_to_load8;
+    		*(__m128i*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 12) = array_elems_to_load12;
+
+    	}
+    	//clean-up tail for stragglers
+    	for (int j = data_size_X/16 * 16; j < data_size_X; j++) {
+    		padded_in[(i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j] = in[i * data_size_X + j];
+    	}
+    }
+
+
 
     //Test
     // for (int i = 0; i < data_size_X; i ++) {
