@@ -53,16 +53,22 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     		array_elems_to_load2 = _mm_load_ps (in + i * data_size_X + j + 8);
     		array_elems_to_load3 = _mm_load_ps (in + i * data_size_X + j+ 12);
     		//Put array elements into padded array. 
-    		*(__m128*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 0) = array_elems_to_load0;
-    		*(__m128*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 4) = array_elems_to_load1;
-    		*(__m128*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 8) = array_elems_to_load2;
-    		*(__m128*)(padded_in + (i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 12) = array_elems_to_load3;
+    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 0) = array_elems_to_load0;
+    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 4) = array_elems_to_load1;
+    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 8) = array_elems_to_load2;
+    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 12) = array_elems_to_load3;
 
     	}
     	//clean-up tail for stragglers
     	for (int j = data_size_X/16 * 16; j < data_size_X; j++) {
     		padded_in[(i + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j] = in[i * data_size_X + j];
     	}
+    }
+
+    //Flip kernel
+    float flipped_kernel[9];
+    for (int i = 0; i < 9; i++) {
+        flipped_kernel[8 - i] = kernel[i];
     }
 
 
@@ -79,19 +85,18 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
     
     // main convolution loop
-	for(int x = 0; x < data_size_X; x++){ // the x coordinate of the output location we're focusing on
-		for(int y = 0; y < data_size_Y; y++){ // the y coordinate of theoutput location we're focusing on
-			for(int i = -kern_cent_X; i <= kern_cent_X; i++){ // kernel unflipped x coordinate
-				for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped y coordinate
-					// only do the operation if not out of bounds
-					if(x+i>-1 && x+i<data_size_X && y+j>-1 && y+j<data_size_Y){
-						//Note that the kernel is flipped
-						out[x+y*data_size_X] += 
-								kernel[(kern_cent_X-i)+(kern_cent_Y-j)*KERNX] * in[(x+i) + (y+j)*data_size_X];
-					}
-				}
-			}
-		}
-	}
-	return 1;
+	for(int y = 0; y < data_size_Y; y++){ // the x coordinate of the output location we're focusing on
+        for(int x = 0; x < data_size_X; x++){ // the y coordinate of theoutput location we're focusing on
+            for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped x coordinate
+                for(int i = -kern_cent_X; i <= kern_cent_X; i++){ // kernel unflipped y coordinate
+                    // only do the operation if not out of bounds
+                    if(x + i >-1 && x + i < data_size_X && y+j>-1 && y+j<data_size_Y){
+                        //Note that thei) kernel is flipped
+                        out[x+y*data_size_X] += flipped_kernel[(kern_cent_X + i)+(kern_cent_Y + j)*KERNX] * in[(x+i) + (y+j)*data_size_X];
+                    }
+                }
+            }
+        }
+    }
+    return 1;
 }
