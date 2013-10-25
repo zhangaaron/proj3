@@ -45,18 +45,18 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 	__m128 array_elems_to_load1;
 	__m128 array_elems_to_load2;
 	__m128 array_elems_to_load3;
-    for (int i = 0; i < data_size_Y; i ++ ) {
-    	for (int j = 0; j < data_size_X; j += 16 ) {
+    for (int j = 0; j < data_size_Y; j ++ ) {
+    	for (int i = 0; i < data_size_X; i += 16 ) {
     		//get 4 128bit quantities per iteration of loop from in. 
-    		array_elems_to_load0 = _mm_load_ps (in + i * data_size_X + j + 0);
-    		array_elems_to_load1 = _mm_load_ps (in + i * data_size_X + j + 4);
-    		array_elems_to_load2 = _mm_load_ps (in + i * data_size_X + j + 8);
-    		array_elems_to_load3 = _mm_load_ps (in + i * data_size_X + j+ 12);
+    		array_elems_to_load0 = _mm_load_ps (in + j * data_size_X + i + 0);
+    		array_elems_to_load1 = _mm_load_ps (in + j * data_size_X + i + 4);
+    		array_elems_to_load2 = _mm_load_ps (in + j * data_size_X + i + 8);
+    		array_elems_to_load3 = _mm_load_ps (in + j * data_size_X + i + 12);
     		//Put array elements into padded array. 
-    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 0) = array_elems_to_load0;
-    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 4) = array_elems_to_load1;
-    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 8) = array_elems_to_load2;
-    		*(__m128*)(padded_in + (i + kern_cent_X) * (data_size_X + 2 * kern_cent_X) + kern_cent_X + j + 12) = array_elems_to_load3;
+    		*(__m128*)(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + 0) = array_elems_to_load0;
+    		*(__m128*)(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + 4) = array_elems_to_load1;
+    		*(__m128*)(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + 8) = array_elems_to_load2;
+    		*(__m128*)(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + 12) = array_elems_to_load3;
 
     	}
     	//clean-up tail for stragglers
