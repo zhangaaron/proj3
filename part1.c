@@ -69,15 +69,12 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
         }
         //print_matrix(padded_in, padded_X, padded_Y);
     }
-    printf("Okay. \n");
     for (int vector_zero_pad_counter = (data_size_Y + kern_cent_Y) * padded_X; vector_zero_pad_counter < padded_matrix_size - 16; vector_zero_pad_counter += 16) {
-        printf("Putting in zeros at %d in padded matrix\n", vector_zero_pad_counter);
         *(__m128*)(padded_in + vector_zero_pad_counter + 0) = zero_pad;
         *(__m128*)(padded_in + vector_zero_pad_counter + 4) = zero_pad;
         *(__m128*)(padded_in + vector_zero_pad_counter + 8) = zero_pad;
         *(__m128*)(padded_in + vector_zero_pad_counter + 12) = zero_pad;
 
-    printf("Kinda. \n");
     }
     //The complicated formula here gets how much tail needs to be done.
     for (int i = padded_matrix_size -( 1 + padded_matrix_size - (data_size_Y + kern_cent_Y) * padded_X )% 16 ; i < padded_matrix_size;  i ++) {
@@ -93,7 +90,6 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
         flipped_kernel[(KERNX * KERNY - 1) - i] = kernel[i];
     }
 
-printf("Okay. \n");
 /*
 
 
