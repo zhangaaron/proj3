@@ -32,6 +32,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
     */
 
+
+
     int kern_cent_X = (KERNX - 1)/2;
     int kern_cent_Y = (KERNY - 1)/2;
     int padded_X = data_size_X + 2 * kern_cent_X;
@@ -81,6 +83,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
             //printf("Tail is at %d\n", i );
             padded_in[i] = 0;
     }
+    print_matrix(padded_in, padded_X, padded_Y);
+
 
     
 
@@ -112,7 +116,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
             }
         }
     }
-    //print_matrix(out, data_size_X, data_size_Y);
+    print_matrix(out, data_size_X, data_size_Y);
 
 
 
