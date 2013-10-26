@@ -27,7 +27,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
         STEP 1: PAD THE MATRIX -- padding of kern_cent_x on each side of the rows and padding of kern_cent_y on top.
         STEP 2: Perform convolutions -- take partial sums using kernel and padded matrix.
-        STEP 3: Unpad the matrix -- DONT ACTUALLY NEED TO
+        STEP 3: Unpad the matrix -- Need to do this:
 
 
     */
@@ -39,6 +39,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     int padded_matrix_size = padded_X * padded_Y;
     float *padded_in; //Padded matrix
     padded_in = (float*)calloc(padded_matrix_size,  4);
+    float *padded_out; //Padded matrix
+    padded_out = (float*)malloc(padded_matrix_size * 4);
     //Vectorized-unrolled method of placing items into array and padding.
     for (int j = 0; j < data_size_Y; j ++ ) {
          for (int i = 0; i < data_size_X - 15; i += 16 ) {
@@ -62,16 +64,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     }
 /*
 
-
-
-   +-------------------------------------------------------------------------------------------------------------------------------------------------+
-            +---------------------+
-            |MAIN CONVOLUTION LOOP|
-            +---------------------+
-*/
-    for(int y = 0; y < data_size_Y; y++){ // the x coordinate of the output location we're focusing on
-        for(int x = 0; x < data_size_X; x++){ // the y coordinate of theoutput location we're focusing on
-            for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped x coordinate
+for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped x coordinate
                 for(int i = -kern_cent_X; i <= kern_cent_X; i++){ // kernel unflipped y coordinate
                     // padding means we never go out of bounds!
                    
@@ -80,9 +73,85 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
                 }
             }
+
+
+   +-------------------------------------------------------------------------------------------------------------------------------------------------+
+            +---------------------+
+            |MAIN CONVOLUTION LOOP|
+            +---------------------+
+            Computed using partial sums. Need to figure out whether its faster to vectorize the whole thing with the regular padded matrix, 
+            and then depad , or if we should do extra pad, vectorize, or handle the edge bits seperately.  
+*/
+    __m128 kernel_subset;
+    __m128 matrix_subset;
+    __m128 temporary_sum;
+    __m128 cumulative_sum;
+    __m128 zero;
+    zero = __mm_set_zero_ps();
+    for(int j = 0; j < data_size_Y; j++){ // the y coordinate of the output location we're focusing on
+        for(int i = 0; i < data_size_X; i += 4){ // the x coordinate of theoutput location we're focusing on
+           //Partial top_left:
+            kernel_subset = _mm_load1_ps(kernel + 0);
+            matrix_subset = _mm_loadu_ps(padded_in + (i - 1) + kern_cent_X + (j - 1 + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = mm_add_ps(zero, temporary_sum);
+
+            //Partial top:
+            kernel_subset = _mm_load1_ps(kernel + 1);
+            matrix_subset = _mm_loadu_ps(padded_in + i + kern_cent_X + (j - 1 + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial top-right
+            kernel_subset = _mm_load1_ps(kernel + 2);
+            matrix_subset = _mm_loadu_ps(padded_in + (i + 1) + kern_cent_X + (j - 1 + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+           //Partial left
+            kernel_subset = _mm_load1_ps(kernel + 3);
+            matrix_subset = _mm_loadu_ps(padded_in + (i - 1) + kern_cent_X + (j + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial middle:
+            kernel_subset = _mm_load1_ps(kernel + 4);
+            matrix_subset = _mm_loadu_ps(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial right
+            kernel_subset = _mm_load1_ps(kernel + 5);
+            matrix_subset = _mm_loadu_ps(padded_in + (i + 1) + kern_cent_X + (j + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial bottom-left
+            kernel_subset = _mm_load1_ps(kernel + 6);
+            matrix_subset = _mm_loadu_ps(padded_in + (i - 1) + kern_cent_X + (j + 1 + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial bottom
+            kernel_subset = _mm_load1_ps(kernel + 7);
+            matrix_subset = _mm_loadu_ps(padded_in + i + kern_cent_X + (j + 1 + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial bottom-right
+            kernel_subset = _mm_load1_ps(kernel + 8);
+            matrix_subset = _mm_loadu_ps(padded_in + (i + 1) + kern_cent_X + (j + 1 + kern_cent_Y) * (padded_X));
+            temporary_sum = _mm_mul_ps(kernel_subset, matrix_subset);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            _mm_storeu_ps((padded_out + i + kern_cent_X + (j + kern_cent_Y) * (padded_X) + 12), cumulative_sum);
+
+
+
+
+
         }
     }
-    //print_matrix(out, data_size_X, data_size_Y);
 
 
 
