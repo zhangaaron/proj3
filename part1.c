@@ -27,7 +27,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
         STEP 1: PAD THE MATRIX -- padding of kern_cent_x on each side of the rows and padding of kern_cent_y on top.
         STEP 2: Perform convolutions -- take partial sums using kernel and padded matrix.
-        STEP 3: Unpad the matrix -- take some scissors and cut the original matrix out of the padded matrix.
+        STEP 3: Unpad the matrix -- DONT ACTUALLY NEED TO
 
 
     */
@@ -39,19 +39,22 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     int padded_matrix_size = padded_X * padded_Y;
     float *padded_in; //Padded matrix
     padded_in = (float*)calloc(padded_matrix_size,  4);
-    //Vectorized-unrolled method of placing items into array and padding. 
+    //Vectorized-unrolled method of placing items into array and padding.
     for (int j = 0; j < data_size_Y; j ++ ) {
-         for (int i = 0; i < data_size_X - 16; i += 16 ) {
-                        
-            *(__m128*)(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + 0)  = _mm_loadu_ps (in + j * data_size_X + i + 0);
+         for (int i = 0; i < data_size_X - 15; i += 16 ) {
+            _mm_storeu_ps((padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X) + 0),_mm_loadu_ps (in + j * data_size_X + i + 0));
+            _mm_storeu_ps((padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X) + 4),_mm_loadu_ps (in + j * data_size_X + i + 4));
+            _mm_storeu_ps((padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X) + 8),_mm_loadu_ps (in + j * data_size_X + i + 8));
+            _mm_storeu_ps((padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X) + 12),_mm_loadu_ps (in + j * data_size_X + i + 12));
+
         }
         //clean-up tail
-        for (int tail_counter= 0; tail_counter < data_size_X; tail_counter++) {
+        for (int tail_counter = (data_size_X/16) * 16; tail_counter < data_size_X; tail_counter++) {
             //printf("Putting in data at %d in padded matrix from %d\n", tail_counter+ kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X), tail_counter + j * data_size_X);
-            padded_in[tail_counter+ kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X)] = in[tail_counter + j * data_size_X];
+            padded_in[tail_counter+ kern_cent_X + (j + kern_cent_Y) * (padded_X)] = in[tail_counter + j * data_size_X];
         }
-    }
 
+    }
     //Flip kernel
     float flipped_kernel[KERNX * KERNY];
     for (int i = 0; i < KERNX * KERNY; i++) {
