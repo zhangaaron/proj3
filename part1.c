@@ -41,11 +41,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     padded_in = (float*)calloc(padded_matrix_size,  4);
     //Vectorized-unrolled method of placing items into array and padding. 
     for (int j = 0; j < data_size_Y; j ++ ) {
-        // for (int i = 0; i < data_size_X; i += 16 ) {
+         for (int i = 0; i < data_size_X - 16; i += 16 ) {
                         
-     //        *(__m128*)(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + 0)  = _mm_loadu_ps (in + j * data_size_X + i + 0); 
-     //        printf("HI!\n");         
-     //    }
+            *(__m128*)(padded_in + i + kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X) + 0)  = _mm_loadu_ps (in + j * data_size_X + i + 0);
+        }
         //clean-up tail
         for (int tail_counter= 0; tail_counter < data_size_X; tail_counter++) {
             //printf("Putting in data at %d in padded matrix from %d\n", tail_counter+ kern_cent_X + (j + kern_cent_Y) * (data_size_X + 2 * kern_cent_X), tail_counter + j * data_size_X);
