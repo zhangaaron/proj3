@@ -4,7 +4,7 @@
 #define KERNY 3 //this is the y-size of the kernel. It will always be odd.
 
 int print_matrix(float* matrix_to_print, int data_size_X, int data_size_Y) {
-    printf("Here's your matrix!\n");
+    printf("\n");
     for (int j = 0; j < data_size_Y; j ++ ) { 
         for (int i = 0; i < data_size_X; i ++) {
             if (matrix_to_print[i  + data_size_X * j] >= 0.0) {
@@ -15,6 +15,11 @@ int print_matrix(float* matrix_to_print, int data_size_X, int data_size_Y) {
         printf("\n");
     }
     printf("\n");
+}
+
+int print_vector(__m128 a) {
+    float *printout = (float*)(&a);
+    printf("Vector is %0.1f %0.1f %0.1f %0.1f\n", printout[0], printout[1], printout[2], printout[3]);
 }
 
 int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
@@ -32,8 +37,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
     */
 
-    int kern_cent_X = (KERNX - 1)/2;
-    int kern_cent_Y = (KERNY - 1)/2;
+    int kern_cent_X = (KERNX - 1)/2 + 1;
+    int kern_cent_Y = (KERNY - 1)/2 + 1;
     int padded_X = data_size_X + 2 * kern_cent_X;
     int padded_Y = data_size_Y + 2 * kern_cent_Y;
     int padded_matrix_size = padded_X * padded_Y;
@@ -62,6 +67,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     for (int i = 0; i < KERNX * KERNY; i++) {
         flipped_kernel[(KERNX * KERNY - 1) - i] = kernel[i];
     }
+
+    print_matrix(padded_in, padded_X, padded_Y);
+    printf("This is the kernel\n");
+    print_matrix(flipped_kernel, 3, 3);
 /*
 
 for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped x coordinate
@@ -93,7 +102,8 @@ for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped x coordina
             kernel_subset = _mm_load1_ps(flipped_kernel + 0);
             matrix_subset = _mm_loadu_ps(padded_in + (i - 1) + kern_cent_X + (j - 1 + kern_cent_Y) * (padded_X));
             cumulative_sum = _mm_mul_ps(kernel_subset, matrix_subset);
-
+            print_vector(kernel_subset);
+            print_vector(cumulative_sum);
             //Partial top:
             kernel_subset = _mm_load1_ps(flipped_kernel + 1);
             matrix_subset = _mm_loadu_ps(padded_in + i + kern_cent_X + (j - 1 + kern_cent_Y) * (padded_X));
@@ -150,6 +160,7 @@ for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped x coordina
 
         }
     }
+    print_matrix(padded_out, padded_X, padded_Y);
     /*
         DEPADDING LOOP:
     */
@@ -170,11 +181,12 @@ for(int j = -kern_cent_Y; j <= kern_cent_Y; j++){ // kernel unflipped x coordina
         }
 
     }
+    print_matrix(out, data_size_X, data_size_Y);
 
 
 
 
-
-    free(padded_in); 
+    free(padded_in);
+    free(padded_out);
     return 1;
 }
