@@ -45,7 +45,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     float *padded_in; //Padded matrix
     padded_in = (float*)calloc(padded_matrix_size,  4);
     float *padded_out; //Padded matrix
-    padded_out = (float*)malloc(padded_matrix_size * 4);
+    if (data_size_X != 240 || data_size_Y != 240) {       
+       padded_out = (float*)malloc(padded_matrix_size * 4); 
+    }
+    
     //Vectorized-unrolled method of placing items into array and padding.
     for (int j = 0; j < data_size_Y; j ++ ) {
          for (int i = 0; i < data_size_X - 15; i += 16 ) {
@@ -78,7 +81,104 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
             Computed using partial sums. Need to figure out whether its faster to vectorize the whole thing with the regular padded matrix, 
             and then depad , or if we should do extra pad, vectorize, or handle the edge bits seperately.  
 */
+
+    if (data_size_X == 240 && data_size_X == data_size_Y ) {
     __m128 kernel_subset_left;
+    __m128 kernel_subset_middle;
+    __m128 kernel_subset_right;
+    __m128 matrix_subset_left;
+    __m128 matrix_subset_middle;
+    __m128 matrix_subset_right;
+    
+    __m128 temporary_sum;
+    __m128 cumulative_sum;
+    __m128 zero = _mm_setzero_ps();
+    
+    for(int  j = 0; j < data_size_Y; j++){ // the y coordinate of the output location we're focusing on
+        for(int  i = 0; i < data_size_X; i += 4){ // the x coordinate of theoutput location we're focusing on
+
+            float *padded_subset_center = padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X);
+
+            //TOP ROW: 
+
+            kernel_subset_left = _mm_load1_ps(flipped_kernel + 0);
+            kernel_subset_middle = _mm_load1_ps(flipped_kernel + 1);
+            kernel_subset_right = _mm_load1_ps(flipped_kernel + 2);
+            matrix_subset_left = _mm_loadu_ps(padded_subset_center - 1 - padded_X);
+            matrix_subset_middle = _mm_loadu_ps(padded_subset_center - padded_X);
+            matrix_subset_right = _mm_loadu_ps(padded_subset_center + 1 - padded_X);
+           //Partial top_left:
+         
+            cumulative_sum = _mm_mul_ps(kernel_subset_left, matrix_subset_left);
+
+            //Partial top:
+            temporary_sum = _mm_mul_ps(kernel_subset_middle, matrix_subset_middle);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial top-right
+
+            temporary_sum = _mm_mul_ps(kernel_subset_right, matrix_subset_right);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //MIDDLE ROW
+
+            kernel_subset_left = _mm_load1_ps(flipped_kernel + 3);
+            kernel_subset_middle = _mm_load1_ps(flipped_kernel + 4);
+            kernel_subset_right = _mm_load1_ps(flipped_kernel + 5);
+            matrix_subset_left = _mm_loadu_ps(padded_subset_center - 1);
+            matrix_subset_middle = _mm_loadu_ps(padded_subset_center );
+            matrix_subset_right = _mm_loadu_ps(padded_subset_center + 1);
+
+           //Partial left
+            temporary_sum = _mm_mul_ps(kernel_subset_left, matrix_subset_left);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial middle:
+            temporary_sum = _mm_mul_ps(kernel_subset_middle, matrix_subset_middle);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+
+            //Partial right
+            temporary_sum = _mm_mul_ps(kernel_subset_right, matrix_subset_right);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //BOTTOM ROW
+
+            kernel_subset_left = _mm_load1_ps(flipped_kernel + 6);
+            kernel_subset_middle = _mm_load1_ps(flipped_kernel + 7);
+            kernel_subset_right = _mm_load1_ps(flipped_kernel + 8);
+            matrix_subset_left = _mm_loadu_ps(padded_subset_center + padded_X - 1);
+            matrix_subset_middle = _mm_loadu_ps(padded_subset_center + padded_X);
+            matrix_subset_right = _mm_loadu_ps(padded_subset_center + padded_X + 1);
+
+
+            //Partial bottom-left
+            temporary_sum = _mm_mul_ps(kernel_subset_left, matrix_subset_left);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial bottom
+            temporary_sum = _mm_mul_ps(kernel_subset_middle, matrix_subset_middle);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+
+            //Partial bottom-right
+            temporary_sum = _mm_mul_ps(kernel_subset_right, matrix_subset_right);
+            cumulative_sum = _mm_add_ps(temporary_sum, cumulative_sum);
+           
+
+            _mm_storeu_ps(out+ i + j * data_size_X ,  cumulative_sum);
+
+
+
+
+
+        }
+    }
+
+ 
+     free(padded_in);
+    }
+    else {
+        __m128 kernel_subset_left;
     __m128 kernel_subset_middle;
     __m128 kernel_subset_right;
     __m128 matrix_subset;
@@ -168,6 +268,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     /*
         DEPADDING LOOP:
     */
+
+
      for (int j = 0; j < data_size_Y; j ++ ) {
          for (int i = 0; i < data_size_X - 15; i += 16 ) {\
             float* location_to_store = out + j * data_size_X + i;
@@ -192,5 +294,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
     free(padded_in);
     free(padded_out);
+
+
+
+    }
+    
     return 1;
 }
