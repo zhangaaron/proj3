@@ -47,17 +47,17 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     float *padded_in; //Padded matrix
     padded_in = (float*)calloc(padded_matrix_size,  4);
     
-    //Vectorized-unrolled method of placing items into array and padding.
-    for (int j = 0; j < data_size_Y; j ++ ) {
-        memcpy(padded_in + kern_cent_X + (j + kern_cent_Y) * (padded_X), in + j * data_size_X, data_size_X * 4);
-
-
+    //Make a padded matrix.
+    #pragma omp parallel
+    {
+    #pragma omp for
+        for (int j = 0; j < data_size_Y; j ++) 
+            memcpy(padded_in + kern_cent_X + (j + kern_cent_Y) * (padded_X), in + j * data_size_X, data_size_X * 4);
+      
     }
     //Flip kernel
-    float flipped_kernel[KERNX * KERNY];
-    for (int i = 0; i < KERNX * KERNY; i++) {
-        flipped_kernel[(KERNX * KERNY - 1) - i] = kernel[i];
-    }
+    float flipped_kernel[9];
+    flipped_kernel[0] = kernel[8];
 
 /*
 
@@ -84,11 +84,10 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     __m128 kernel_subset_botmiddle = _mm_load1_ps(flipped_kernel + 7);
     __m128 kernel_subset_botright = _mm_load1_ps(flipped_kernel + 8);
 
-
     #pragma omp parallel
     {
-    for(int  j = 0; j < data_size_Y; j++){ // the y coordinate of the output location we're focusing on
-        #pragma omp for
+    #pragma omp for
+    for(int  j = 0; j < data_size_Y; j++){ // the y coordinate of the output location we're focusing on        
         for(int  i = 0; i < data_size_X - 3; i += 4){ // the x coordinate of theoutput location we're focusing on
             __m128 cumulative_sum;
             __m128 matrix_subset_left;
