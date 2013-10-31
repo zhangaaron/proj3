@@ -93,7 +93,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
 
     for(int  j = 0; j < data_size_Y; j++){ // the y coordinate of the output location we're focusing on
-        #pragma omp parallel for(private: cumulative_sum, matrix_subset_right, matrix_subset_middle, matrix_subset_left) {
+        #pragma omp parallel for private(cumulative_sum, matrix_subset_left, matrix_subset_middle, matrix_subset_right)
 
         for(int  i = 0; i < data_size_X - 3; i += 4){ // the x coordinate of theoutput location we're focusing on
 
@@ -157,7 +157,6 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
 
 
         }
-    }
         //partial sums tail.
         float c_sum;
         for (int i = data_size_X/ 4 * 4; i < data_size_X; i ++) {
