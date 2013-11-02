@@ -54,7 +54,11 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     {
 
     #pragma omp for
-        for (int i = 0; i < padded_matrix_size; i ++) {
+        for (int i = 0; i < padded_matrix_size - 3; i += 4) {
+            _mm_storeu_ps(padded_in + i, _mm_setzero_ps());        
+        }
+
+        for (int i = padded_matrix_size/ 4 * 4; i < padded_matrix_size; i++) {
             padded_in[i] = 0;
         }
     #pragma omp for schedule(dynamic)
