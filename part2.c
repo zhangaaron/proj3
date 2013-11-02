@@ -46,12 +46,17 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     int padded_X = data_size_X + 2 * kern_cent_X;
     int padded_Y = data_size_Y + 2 * kern_cent_Y;
     int padded_matrix_size = padded_X * padded_Y;
-    float *padded_in; //Padded matrix
-    padded_in = (float*)calloc(padded_matrix_size,  4);
+    float padded_in[padded_matrix_size]; //Padded matrix
+
 
     //Make a padded matrix.
     #pragma omp parallel
     {
+
+    #pragma omp for
+        for (int i = 0; i < padded_matrix_size; i ++) {
+            padded_in[i] = 0;
+        }
     #pragma omp for schedule(dynamic)
         for (int j = 0; j < data_size_Y; j ++ ) {
          for (int i = 0; i < data_size_X - 15; i += 16 ) {
@@ -223,7 +228,6 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
         }
 
  
-     free(padded_in);
     
     return 1;
 }
