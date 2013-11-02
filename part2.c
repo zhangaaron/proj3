@@ -46,7 +46,8 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     int padded_X = data_size_X + 2 * kern_cent_X;
     int padded_Y = data_size_Y + 2 * kern_cent_Y;
     int padded_matrix_size = padded_X * padded_Y;
-    float padded_in[padded_matrix_size]; //Padded matrix
+    float *padded_in;
+    padded_in = (float*)malloc(padded_matrix_size * 4);
 
 
     //Make a padded matrix.
@@ -231,7 +232,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
             out[i + (data_size_Y - 1) * data_size_X] = c_sum;
         }
 
- 
+    free(padded_in);
     
     return 1;
 }
