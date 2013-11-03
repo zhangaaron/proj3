@@ -62,7 +62,7 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
         for (int i = padded_matrix_size/ 4 * 4; i < padded_matrix_size; i++) {
             padded_in[i] = 0;
         }
-    #pragma omp for schedule(dynamic)
+    #pragma omp for
         for (int j = 0; j < data_size_Y; j ++ ) {
          for (int i = 0; i < data_size_X - 15; i += 16 ) {
             _mm_storeu_ps((padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X) + 0),_mm_loadu_ps (in + j * data_size_X + i + 0));
@@ -123,100 +123,73 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
     __m128 matrix_subset_middle;
     __m128 matrix_subset_right;    
     #pragma omp for private(cumulative_sum, matrix_subset_right, matrix_subset_left, matrix_subset_middle)
-    for(int  j = 0; j < data_size_Y - 1; j++){ // the y coordinate of the output location we're focusing on        
-        for(int  i = 0; i < data_size_X; i += 4){ // the x coordinate of theoutput location we're focusing on
-           
+    for(int  j = 0; j < data_size_Y; j++){ // the y coordinate of the output location we're focusing on
+        for(int  i = 0; i < data_size_X - 3; i += 4){ // the x coordinate of theoutput location we're focusing on
+
             float *padded_subset_center = padded_in + i + kern_cent_X + (j + kern_cent_Y) * (padded_X);
 
             //TOP ROW: 
             matrix_subset_left = _mm_loadu_ps(padded_subset_center - 1 - padded_X);
             matrix_subset_middle = _mm_loadu_ps(padded_subset_center - padded_X);
             matrix_subset_right = _mm_loadu_ps(padded_subset_center + 1 - padded_X);
-           //Partial top_left:         
+           //Partial top_left:
+         
             cumulative_sum = _mm_mul_ps(kernel_subset_topleft, matrix_subset_left);
+
             //Partial top:
             cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_topmiddle, matrix_subset_middle), cumulative_sum);
+
             //Partial top-right
+
             cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_topright, matrix_subset_right), cumulative_sum);
 
-
             //MIDDLE ROW
+
             matrix_subset_left = _mm_loadu_ps(padded_subset_center - 1);
-            matrix_subset_middle = _mm_loadu_ps(padded_subset_center);
+            matrix_subset_middle = _mm_loadu_ps(padded_subset_center );
             matrix_subset_right = _mm_loadu_ps(padded_subset_center + 1);
-            //Partial left
+
+           //Partial left
             cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_left, matrix_subset_left), cumulative_sum);
+
             //Partial middle:
             cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_middle, matrix_subset_middle), cumulative_sum);
-            //Partial right 
+
+
+            //Partial right
             cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_right, matrix_subset_right), cumulative_sum);
-            
+
             //BOTTOM ROW
+
             matrix_subset_left = _mm_loadu_ps(padded_subset_center + padded_X - 1);
             matrix_subset_middle = _mm_loadu_ps(padded_subset_center + padded_X);
             matrix_subset_right = _mm_loadu_ps(padded_subset_center + padded_X + 1);
+
+
             //Partial bottom-left
+
             cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_botleft, matrix_subset_left), cumulative_sum);
+
             //Partial bottom
+
             cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_botmiddle, matrix_subset_middle), cumulative_sum);
+
             //Partial bottom-right
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_botright, matrix_subset_right), cumulative_sum);           
+
+            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_botright, matrix_subset_right), cumulative_sum);
+           
 
             _mm_storeu_ps(out+ i + j * data_size_X ,  cumulative_sum);
 
-        }
-       
-    }
-    #pragma omp for
-    for(int  i = 0; i < data_size_X - 3; i += 4){ // the x coordinate of theoutput location we're focusing on
-            __m128 cumulative_sum;
-            __m128 matrix_subset_left;
-            __m128 matrix_subset_middle;
-            __m128 matrix_subset_right;
-            float *padded_subset_center = padded_in + i + kern_cent_X + (data_size_Y - 1 + kern_cent_Y) * (padded_X);
-
-            //TOP ROW: 
-            matrix_subset_left = _mm_loadu_ps(padded_subset_center - 1 - padded_X);
-            matrix_subset_middle = _mm_loadu_ps(padded_subset_center - padded_X);
-            matrix_subset_right = _mm_loadu_ps(padded_subset_center + 1 - padded_X);
-           //Partial top_left:         
-            cumulative_sum = _mm_mul_ps(kernel_subset_topleft, matrix_subset_left);
-            //Partial top:
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_topmiddle, matrix_subset_middle), cumulative_sum);
-            //Partial top-right
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_topright, matrix_subset_right), cumulative_sum);
 
 
-            //MIDDLE ROW
-            matrix_subset_left = _mm_loadu_ps(padded_subset_center - 1);
-            matrix_subset_middle = _mm_loadu_ps(padded_subset_center);
-            matrix_subset_right = _mm_loadu_ps(padded_subset_center + 1);
-            //Partial left
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_left, matrix_subset_left), cumulative_sum);
-            //Partial middle:
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_middle, matrix_subset_middle), cumulative_sum);
-            //Partial right 
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_right, matrix_subset_right), cumulative_sum);
-            
-            //BOTTOM ROW
-            matrix_subset_left = _mm_loadu_ps(padded_subset_center + padded_X - 1);
-            matrix_subset_middle = _mm_loadu_ps(padded_subset_center + padded_X);
-            matrix_subset_right = _mm_loadu_ps(padded_subset_center + padded_X + 1);
-            //Partial bottom-left
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_botleft, matrix_subset_left), cumulative_sum);
-            //Partial bottom
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_botmiddle, matrix_subset_middle), cumulative_sum);
-            //Partial bottom-right
-            cumulative_sum = _mm_add_ps(_mm_mul_ps(kernel_subset_botright, matrix_subset_right), cumulative_sum);           
 
-            _mm_storeu_ps(out+ i + (data_size_Y - 1) * data_size_X ,  cumulative_sum);
 
         }
-}
-     //partial sums tail.
+        //partial sums tail.
         float c_sum;
         for (int i = data_size_X/ 4 * 4; i < data_size_X; i ++) {
-            int padded_subset_center = i + kern_cent_X + (data_size_Y  - 1 + kern_cent_Y) * (padded_X);
+            int padded_subset_center = i + kern_cent_X + (j + kern_cent_Y) * (padded_X);
             //top partials
             c_sum = padded_in[padded_subset_center - 1 - padded_X] * flipped_kernel[0];  
             c_sum += padded_in[padded_subset_center - padded_X] * flipped_kernel[1];
@@ -229,9 +202,11 @@ int conv2D(float* in, float* out, int data_size_X, int data_size_Y,
             c_sum += padded_in[padded_subset_center - 1 + padded_X] * flipped_kernel[6];
             c_sum += padded_in[padded_subset_center + padded_X] * flipped_kernel[7];
             c_sum += padded_in[padded_subset_center + 1 + padded_X] * flipped_kernel[8];
-            out[i + (data_size_Y - 1) * data_size_X] = c_sum;
+            out[i + j * data_size_X] = c_sum;
         }
-
+    } 
+   
+}
     free(padded_in);
     
     return 1;
